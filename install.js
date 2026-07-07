@@ -55,7 +55,7 @@ function formatBytes(bytes) {
 let stepCounter = 0;
 function step(msg) {
   stepCounter++;
-  console.log(`[realagent] [${stepCounter}/7] ${msg}`);
+  console.log(`[realagent] [${stepCounter}/6] ${msg}`);
 }
 
 function log(msg) {
@@ -133,26 +133,15 @@ async function main() {
   const platform = platformKey();
   const binPath = path.join(INSTALL_DIR, BINARY_NAME);
 
-  // 1. Check if already installed
-  step('Checking installed version...');
+  // 1. Fetch latest release info from distribution server
+  step(`Fetching release info...`);
   const pkgVersion = JSON.parse(
     fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8')
   ).version;
-  log(`package version: ${pkgVersion}`);
+  log(`npm package: ${pkgVersion}`);
   log(`platform: ${platform}`);
   log(`install dir: ${INSTALL_DIR}`);
 
-  if (fs.existsSync(binPath) && fs.existsSync(VERSION_FILE)) {
-    const installed = fs.readFileSync(VERSION_FILE, 'utf8').trim();
-    if (installed === pkgVersion) {
-      ok(`binary ${pkgVersion} already installed`);
-      return;
-    }
-    log(`version mismatch (installed=${installed}, expected=${pkgVersion}), re-downloading...`);
-  }
-
-  // 2. Fetch latest release info from distribution server
-  step(`Fetching release info...`);
   let meta;
   try {
     const resp = await fetch(VERSION_API, { signal: AbortSignal.timeout(15000) });
@@ -163,9 +152,26 @@ async function main() {
     warn('Skipping binary download. Re-run: node install.js');
     return;
   }
-  ok(`latest release: ${meta.version}`);
+  // Normalize: dist-server version always has "v" prefix (e.g. "v1.2.4").
+  const distVer = (meta.version && !meta.version.startsWith('v'))
+    ? 'v' + meta.version
+    : meta.version;
+  ok(`latest release: ${distVer}`);
 
-  // 3. Resolve download URL and checksum for this platform
+  // Compare against dist-server version (source of truth), not npm version.
+  // npm and dist-server may diverge during release.
+  if (fs.existsSync(binPath) && fs.existsSync(VERSION_FILE)) {
+    const installed = fs.readFileSync(VERSION_FILE, 'utf8').trim();
+    // Handle legacy cache entries that lacked the "v" prefix.
+    const normalized = installed.startsWith('v') ? installed : 'v' + installed;
+    if (normalized === distVer) {
+      ok(`binary ${distVer} already installed`);
+      return;
+    }
+    log(`version mismatch (installed=${normalized}, dist=${distVer}), re-downloading...`);
+  }
+
+  // 2. Resolve download URL and checksum for this platform
   step(`Finding binary for ${platform}...`);
   const dlURL = meta.downloads ? meta.downloads[platform] : null;
   const checksum = meta.checksums ? meta.checksums[platform] : null;
@@ -179,7 +185,7 @@ async function main() {
   }
   ok(`found: ${path.basename(dlURL)}`);
 
-  // 4. Download archive with progress
+  // 3. Download archive with progress
   step(`Downloading ${path.basename(dlURL)}...`);
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'realagent-'));
   const isZip = dlURL.endsWith('.zip');
@@ -203,7 +209,7 @@ async function main() {
   const fileSize = fs.statSync(archivePath).size;
   ok(`downloaded ${formatBytes(fileSize)}`);
 
-  // 5. Verify checksum (optional, non-blocking)
+  // 4. Verify checksum (optional, non-blocking)
   if (checksum) {
     if (!(await verifyChecksum(archivePath, checksum))) {
       fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -211,7 +217,7 @@ async function main() {
     }
   }
 
-  // 6. Extract
+  // 5. Extract
   step('Extracting binary...');
   fs.mkdirSync(INSTALL_DIR, { recursive: true });
   try {
@@ -237,14 +243,14 @@ async function main() {
   }
   ok(`extracted ${formatBytes(fs.statSync(binPath).size)}`);
 
-  // 7. Make executable + record + cleanup
+  // 6. Make executable + record + cleanup
   step('Finishing up...');
   if (process.platform !== 'win32') {
     try { fs.chmodSync(binPath, 0o755); } catch (_) {}
   }
-  fs.writeFileSync(VERSION_FILE, pkgVersion, 'utf8');
+  fs.writeFileSync(VERSION_FILE, distVer, 'utf8');
   fs.rmSync(tmpDir, { recursive: true, force: true });
-  ok(`installed realagent ${pkgVersion} → ${binPath}`);
+  ok(`installed realagent ${distVer} → ${binPath}`);
 }
 
 main().catch((err) => {
