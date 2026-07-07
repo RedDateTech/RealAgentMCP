@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 // Postinstall script for realagent.
-// Downloads the prebuilt Go binary for the current platform from
-// GitHub Releases and installs it to ~/.realagent/bin/.
+// Downloads the prebuilt Go binary for the current platform from the
+// distribution server and installs it to ~/.realagent/bin/.
 //
 // On failure this script exits 0 so it never blocks npm install.
 // Users can re-run it manually with: node install.js
@@ -12,6 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const { Transform } = require('stream');
 const { execSync } = require('child_process');
 const { pipeline } = require('stream/promises');
@@ -25,12 +26,7 @@ const BINARY_NAME = process.platform === 'win32'
 const INSTALL_DIR = path.join(os.homedir(), '.realagent', 'bin');
 const VERSION_FILE = path.join(os.homedir(), '.realagent', '.npm-version');
 const VERSION_API = process.env.REALAGENT_API ||
-  'https://api.github.com/repos/RedDateTech/RealAgentMCP/releases/latest';
-
-const REQUEST_HEADERS = {
-  'User-Agent': 'realagent-mcp-server',
-  'Accept': 'application/vnd.github+json',
-};
+  'http://60.247.61.162:8083/api/version/latest';
 
 // ── Platform detection ─────────────────────────────────────────
 
@@ -74,6 +70,38 @@ function ok(msg) {
   console.log(`[realagent]   ✓ ${msg}`);
 }
 
+// ── SHA256 verification ────────────────────────────────────────
+
+function sha256File(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = fs.createReadStream(filePath);
+    stream.on('data', (d) => hash.update(d));
+    stream.on('end', () => resolve(hash.digest('hex')));
+    stream.on('error', reject);
+  });
+}
+
+async function verifyChecksum(filePath, expected) {
+  // Expected format: "sha256:abc123..."
+  const parts = expected.split(':');
+  if (parts.length !== 2 || parts[0] !== 'sha256') {
+    warn(`unsupported checksum format: ${expected}`);
+    return true; // skip verification, don't block
+  }
+  const expectedHash = parts[1].trim();
+  log(`verifying SHA256...`);
+  const actual = await sha256File(filePath);
+  if (actual !== expectedHash) {
+    warn(`checksum mismatch — archive may be corrupted`);
+    warn(`  expected: ${expectedHash.substring(0, 16)}...`);
+    warn(`  actual:   ${actual.substring(0, 16)}...`);
+    return false;
+  }
+  ok(`checksum verified`);
+  return true;
+}
+
 // ── Progress stream ────────────────────────────────────────────
 
 function progressStream(totalSize) {
@@ -86,8 +114,7 @@ function progressStream(totalSize) {
       const now = Date.now();
       if (now - lastLog > 500 || downloaded === totalSize) {
         const pct = totalSize ? Math.round((downloaded / totalSize) * 100) : '?';
-        const speed = totalSize ? formatBytes(downloaded) : formatBytes(downloaded);
-        process.stdout.write(`\r[realagent]        ${speed} / ${formatBytes(totalSize)} (${pct}%)`);
+        process.stdout.write(`\r[realagent]        ${formatBytes(downloaded)} / ${formatBytes(totalSize)} (${pct}%)`);
         lastLog = now;
       }
       this.push(chunk);
@@ -124,14 +151,11 @@ async function main() {
     log(`version mismatch (installed=${installed}, expected=${pkgVersion}), re-downloading...`);
   }
 
-  // 2. Fetch latest release from GitHub
-  step(`Fetching release info from GitHub...`);
+  // 2. Fetch latest release info from distribution server
+  step(`Fetching release info...`);
   let meta;
   try {
-    const resp = await fetch(VERSION_API, {
-      signal: AbortSignal.timeout(15000),
-      headers: REQUEST_HEADERS,
-    });
+    const resp = await fetch(VERSION_API, { signal: AbortSignal.timeout(15000) });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     meta = await resp.json();
   } catch (err) {
@@ -139,28 +163,21 @@ async function main() {
     warn('Skipping binary download. Re-run: node install.js');
     return;
   }
-  const tag = meta.tag_name || meta.version;
-  ok(`latest release: ${tag}`);
+  ok(`latest release: ${meta.version}`);
 
-  // 3. Find matching asset
+  // 3. Resolve download URL and checksum for this platform
   step(`Finding binary for ${platform}...`);
-  let dlURL = null;
-  let dlSize = 0;
-  if (meta.assets) {
-    const asset = meta.assets.find(a => a.name && a.name.includes(platform));
-    if (asset) {
-      dlURL = asset.browser_download_url;
-      dlSize = asset.size || 0;
-    }
-  }
+  const dlURL = meta.downloads ? meta.downloads[platform] : null;
+  const checksum = meta.checksums ? meta.checksums[platform] : null;
+
   if (!dlURL) {
     warn(`No binary for platform: ${platform}`);
-    if (meta.assets) {
-      meta.assets.forEach(a => log(`  asset: ${a.name} (${formatBytes(a.size)})`));
+    if (meta.downloads) {
+      Object.entries(meta.downloads).forEach(([p, u]) => log(`  ${p}: ${path.basename(u)}`));
     }
     return;
   }
-  ok(`found: ${path.basename(dlURL)} (${formatBytes(dlSize)})`);
+  ok(`found: ${path.basename(dlURL)}`);
 
   // 4. Download archive with progress
   step(`Downloading ${path.basename(dlURL)}...`);
@@ -170,15 +187,11 @@ async function main() {
   const archivePath = path.join(tmpDir, `download${ext}`);
 
   try {
-    const dlResp = await fetch(dlURL, {
-      signal: AbortSignal.timeout(120000),
-      headers: { 'User-Agent': 'realagent-mcp-server' },
-    });
+    const dlResp = await fetch(dlURL, { signal: AbortSignal.timeout(120000) });
     if (!dlResp.ok) throw new Error(`HTTP ${dlResp.status}`);
 
-    // Use progress stream if Content-Length is available
     const cl = dlResp.headers.get('content-length');
-    const total = cl ? parseInt(cl, 10) : dlSize;
+    const total = cl ? parseInt(cl, 10) : 0;
     const progress = progressStream(total);
     await pipeline(dlResp.body, progress, fs.createWriteStream(archivePath));
   } catch (err) {
@@ -189,7 +202,15 @@ async function main() {
   const fileSize = fs.statSync(archivePath).size;
   ok(`downloaded ${formatBytes(fileSize)}`);
 
-  // 5. Extract
+  // 5. Verify checksum (optional, non-blocking)
+  if (checksum) {
+    if (!(await verifyChecksum(archivePath, checksum))) {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      return;
+    }
+  }
+
+  // 6. Extract
   step('Extracting binary...');
   fs.mkdirSync(INSTALL_DIR, { recursive: true });
   try {
@@ -215,15 +236,11 @@ async function main() {
   }
   ok(`extracted ${formatBytes(fs.statSync(binPath).size)}`);
 
-  // 6. Make executable
-  step('Setting permissions...');
+  // 7. Make executable + record + cleanup
+  step('Finishing up...');
   if (process.platform !== 'win32') {
     try { fs.chmodSync(binPath, 0o755); } catch (_) {}
   }
-  ok('ready');
-
-  // 7. Record & cleanup
-  step('Finishing up...');
   fs.writeFileSync(VERSION_FILE, pkgVersion, 'utf8');
   fs.rmSync(tmpDir, { recursive: true, force: true });
   ok(`installed realagent ${pkgVersion} → ${binPath}`);
