@@ -85,8 +85,8 @@ function sha256File(filePath) {
 async function verifyChecksum(filePath, expected) {
   // Expected format: "sha256:abc123..."
   const parts = expected.split(':');
-  if (parts.length !== 2 || parts[0] !== 'sha256') {
-    warn(`unsupported checksum format: ${expected}`);
+  if (parts.length !== 2 || parts[0] !== 'sha256' || !parts[1].trim()) {
+    warn(`bad checksum: ${expected ? expected.substring(0, 32) : '(none)'}...`);
     return true; // skip verification, don't block
   }
   const expectedHash = parts[1].trim();
@@ -189,6 +189,7 @@ async function main() {
   try {
     const dlResp = await fetch(dlURL, { signal: AbortSignal.timeout(120000) });
     if (!dlResp.ok) throw new Error(`HTTP ${dlResp.status}`);
+    if (!dlResp.body) throw new Error('response body is empty');
 
     const cl = dlResp.headers.get('content-length');
     const total = cl ? parseInt(cl, 10) : 0;

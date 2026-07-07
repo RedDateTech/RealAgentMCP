@@ -3,7 +3,7 @@
 // Bin wrapper for realagent.
 // Locates the prebuilt Go binary in ~/.realagent/bin/ and forwards
 // all CLI arguments and stdio to it. If the binary is not found,
-// automatically downloads it from GitHub Releases.
+// automatically downloads it from the distribution server.
 //
 // Exit codes are propagated from the Go binary.
 
@@ -52,7 +52,8 @@ if (result.error) {
 }
 
 if (result.signal) {
-  process.exit(128 + (os.constants.signals[result.signal] || 0));
+  const sigCode = os.constants.signals[result.signal];
+  process.exit(128 + (typeof sigCode === 'number' ? sigCode : 0));
 }
 
 process.exit(result.status ?? 0);

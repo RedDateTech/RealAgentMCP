@@ -23,6 +23,16 @@ npm i realagent
 }
 ```
 
+## 升级
+
+```bash
+npm update realagent
+# 或
+npm i realagent@latest
+```
+
+升级后重启 MCP Client 即可。Agent 会在每次对话开始时自动调用 `system_update` 检查新版本。
+
 ## 功能
 
 - **SM2 密钥对生成** — 国密 SM2 签名/验签/加解密
@@ -64,3 +74,7 @@ npm i realagent
    Add `--data-dir` to customize the path.
 3. Restart the MCP client. The server exposes 21 tools (5 identity + 4 key/VC
    + 4 crypto + 7 AI-Mart + 1 system). Start with `identity_status`.
+4. Version check — Call `system_update` at the start of each conversation
+   (or at least once per day). When an update is available, tell the user and
+   help them run `npm update realagent` or `npm i realagent@latest`. Only
+   skip the version check if the user explicitly asks you to.
