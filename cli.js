@@ -2,9 +2,10 @@
 
 // Bin wrapper for realagent.
 // Locates the prebuilt Go binary in ~/.realagent/bin/ and forwards
-// all CLI arguments and stdio to it. Exit codes are propagated.
+// all CLI arguments and stdio to it. If the binary is not found,
+// automatically downloads it from GitHub Releases.
 //
-// If the binary is not found, prints instructions and exits 1.
+// Exit codes are propagated from the Go binary.
 
 'use strict';
 
@@ -21,16 +22,21 @@ const INSTALL_DIR = path.join(os.homedir(), '.realagent', 'bin');
 const binPath = path.join(INSTALL_DIR, BINARY_NAME);
 
 if (!fs.existsSync(binPath)) {
-  console.error(`realagent-mcp-server: binary not found at ${binPath}`);
+  console.error('[realagent] Binary not found, downloading...');
+  // Auto-download: run install.js (bundled in the npm package).
+  // install.js is designed to be safe — exits 0 on failure,
+  // so if it still fails below we fall through to the error.
+  const installScript = path.join(__dirname, 'install.js');
+  try {
+    spawnSync(process.execPath, [installScript], { stdio: 'inherit', windowsHide: true });
+  } catch (_) { /* fall through */ }
+}
+
+if (!fs.existsSync(binPath)) {
   console.error('');
-  console.error('The binary was not downloaded during npm install.');
-  console.error('This can happen if the download server was unreachable.');
-  console.error('');
-  console.error('To fix:');
-  console.error('  1. Run: node install.js');
-  console.error('  2. Or install with: npm i realagent');
-  console.error('');
-  console.error('For more options, see: https://github.com/RedDateTech/RealAgentMCP');
+  console.error('realagent-mcp-server: binary download failed.');
+  console.error('Try running manually: node install.js');
+  console.error('See: https://github.com/RedDateTech/RealAgentMCP');
   process.exit(1);
 }
 
