@@ -1,0 +1,37 @@
+# Go source and build artifacts
+*.go
+go.mod
+go.sum
+cmd/
+internal/
+pkg/
+
+# Build
+bin/
+dist/
+Dockerfile
+docker-compose.yml
+Makefile
+
+# Site / distribution
+deploy/
+
+# Docs (keep only if you want users to see them)
+docs/
+
+# IDE / tooling
+.idea/
+.vscode/
+.claude/
+.mimocode/
+.DS_Store
+
+# Test artifacts
+coverage.out
+
+# CI
+.github/
+
+# Git
+.git/
+.gitignore
