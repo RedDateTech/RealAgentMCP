@@ -26,7 +26,7 @@ const BINARY_NAME = process.platform === 'win32'
 const INSTALL_DIR = path.join(os.homedir(), '.realagent', 'bin');
 const VERSION_FILE = path.join(os.homedir(), '.realagent', '.npm-version');
 const VERSION_API = process.env.REALAGENT_API ||
-  'http://60.247.61.162:8083/api/version/latest';
+  'https://realagentmcp.guoxinvc.cn/latest';
 
 // ── Platform detection ─────────────────────────────────────────
 

@@ -23,7 +23,7 @@ const INSTALL_DIR = path.join(os.homedir(), '.realagent', 'bin');
 const binPath = path.join(INSTALL_DIR, BINARY_NAME);
 
 const VERSION_API = process.env.REALAGENT_API ||
-  'http://60.247.61.162:8083/api/version/latest';
+  'https://realagentmcp.guoxinvc.cn/latest';
 
 // ── Helpers ──────────────────────────────────────────────────────
 
