@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Bin wrapper for realagent.
+// Bin wrapper for realagent-mcp.
 // Locates the prebuilt Go binary in ~/.realagent/bin/ and forwards
 // all CLI arguments and stdio to it. If the binary is not found or is
 // older than the latest on the distribution server, automatically
@@ -16,8 +16,8 @@ const path = require('path');
 const os = require('os');
 
 const BINARY_NAME = process.platform === 'win32'
-  ? 'realagent-mcp-server.exe'
-  : 'realagent-mcp-server';
+  ? 'realagent-mcp.exe'
+  : 'realagent-mcp';
 
 const INSTALL_DIR = path.join(os.homedir(), '.realagent', 'bin');
 const binPath = path.join(INSTALL_DIR, BINARY_NAME);
@@ -36,7 +36,7 @@ function binaryVersion() {
       windowsHide: true,
     });
     if (v.error || v.status !== 0) return null;
-    // Output format: "realagent-mcp-server v1.2.4\n  go\t..."
+    // Output format: "realagent-mcp v1.2.4\n  go\t..."
     const got = v.stdout.toString().trim().split(/\s+/)[1]; // "v1.2.4"
     return got || null;
   } catch (_) {
@@ -95,7 +95,7 @@ function needsDownload() {
   const distVer = distServerVersion();
   if (distVer) {
     if (versionLess(binVer, distVer)) {
-      console.error('[realagent] Binary %s < dist-server %s, downloading...', binVer, distVer);
+      console.error('[realagent-mcp] Binary %s < dist-server %s, downloading...', binVer, distVer);
       return true;
     }
     // Binary is up to date with dist-server — nothing to do.
@@ -111,7 +111,7 @@ function needsDownload() {
       fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8')
     ).version;
     if (versionLess(binVer, pkgVer)) {
-      console.error('[realagent] Binary %s < npm %s (dist-server unreachable), downloading...', binVer, pkgVer);
+      console.error('[realagent-mcp] Binary %s < npm %s (dist-server unreachable), downloading...', binVer, pkgVer);
       return true;
     }
   } catch (_) { /* proceed */ }
@@ -122,7 +122,7 @@ function needsDownload() {
 // ── Main ─────────────────────────────────────────────────────────
 
 if (needsDownload()) {
-  console.error('[realagent] Downloading binary...');
+  console.error('[realagent-mcp] Downloading binary...');
   const installScript = path.join(__dirname, 'install.js');
   try {
     spawnSync(process.execPath, [installScript], { stdio: 'inherit', windowsHide: true });
@@ -131,7 +131,7 @@ if (needsDownload()) {
 
 if (!fs.existsSync(binPath)) {
   console.error('');
-  console.error('realagent-mcp-server: binary download failed.');
+  console.error('realagent-mcp: binary download failed.');
   console.error('Try running manually: node install.js');
   console.error('See: https://github.com/RedDateTech/RealAgentMCP');
   process.exit(1);
@@ -144,7 +144,7 @@ const result = spawnSync(binPath, args, {
 });
 
 if (result.error) {
-  console.error(`realagent-mcp-server: failed to spawn: ${result.error.message}`);
+  console.error(`realagent-mcp: failed to spawn: ${result.error.message}`);
   process.exit(1);
 }
 

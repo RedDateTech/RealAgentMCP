@@ -1,11 +1,11 @@
 {
-  "name": "realagent",
-  "version": "1.2.9",
+  "name": "realagent-mcp",
+  "version": "0.1.0",
   "description": "RealAgent MCP Server — 国信智能体实名关联服务",
   "license": "UNLICENSED",
   "homepage": "https://github.com/RedDateTech/RealAgentMCP",
   "bin": {
-    "realagent-mcp-server": "./cli.js"
+    "realagent-mcp": "./cli.js"
   },
   "scripts": {
     "postinstall": "node install.js"
