@@ -45,6 +45,49 @@ npm i -g realagent-mcp@latest
 - **SM4 加密存储** — 私钥和 VC 使用 SM4-CTR+SM3-HMAC 本地加密
 - **自动更新** — 内置版本检查 + system_update 工具
 
+## Tools
+
+MCP Server 运行时动态暴露以下 14 个工具：
+
+### 实名身份关联
+
+| 工具 | 说明 |
+|------|------|
+| `identity_link` | 发起实名关联：生成二维码，用户扫码认证后自动领取实名凭证（VC） |
+| `identity_status` | 查询当前 Agent 的实名关联状态与身份信息 |
+| `identity_revoke` | 注销实名关联并作废凭证 |
+
+### 可验证证明（VP）
+
+| 工具 | 说明 |
+|------|------|
+| `identity_vp` | 生成 SD-JWT 可验证证明（VP），支持选择性披露字段 |
+| `identity_verify_vp` | 验证 VP 的签名与披露内容 |
+| `vp_parse` | 解析 VP 结构，提取披露的声明字段 |
+
+### 凭证与密钥查询
+
+| 工具 | 说明 |
+|------|------|
+| `vc_info` | 查询本地已领取的可验证凭证（VC）摘要信息 |
+| `vc_raw` | 获取 VC 原始数据 |
+| `key_info` | 查询本地 SM2 密钥对与指纹信息 |
+
+### 国密运算
+
+| 工具 | 说明 |
+|------|------|
+| `crypto_sign` | 使用 SM2 私钥对数据签名 |
+| `crypto_verify` | 验证 SM2 签名 |
+| `crypto_encrypt` | SM2 加密数据 |
+| `crypto_decrypt` | SM2 解密数据 |
+
+### 系统
+
+| 工具 | 说明 |
+|------|------|
+| `system_update` | 检查 MCP Server 是否有新版本 |
+
 ## AGENT INSTRUCTIONS
 
 > 以下内容供 AI Agent 读取，用于自动完成安装和配置。
