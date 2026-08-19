@@ -44,7 +44,7 @@ function binaryVersion() {
   }
 }
 
-function distServerVersion() {
+function latestVersion() {
   try {
     const resp = spawnSync(process.execPath, [
       '-e',
@@ -88,30 +88,30 @@ function needsDownload() {
   const binVer = binaryVersion();
   if (!binVer) return true;
 
-  // Source of truth: dist-server. Compare binary version against what
-  // the dist-server has available. This avoids the problem where the
-  // npm package version was bumped but binaries haven't been uploaded
-  // yet (or vice versa).
-  const distVer = distServerVersion();
-  if (distVer) {
-    if (versionLess(binVer, distVer)) {
-      console.error('[realagent-mcp] Binary %s < dist-server %s, downloading...', binVer, distVer);
+  // Source of truth: the release site (/latest). Compare binary version
+  // against what the release site has available. This avoids the problem
+  // where the npm package version was bumped but binaries haven't been
+  // uploaded yet (or vice versa).
+  const latestVer = latestVersion();
+  if (latestVer) {
+    if (versionLess(binVer, latestVer)) {
+      console.error('[realagent-mcp] Binary %s < latest %s, downloading...', binVer, latestVer);
       return true;
     }
-    // Binary is up to date with dist-server — nothing to do.
+    // Binary is up to date with the latest release — nothing to do.
     return false;
   }
 
-  // Dist-server unreachable: fall back to npm package.json version.
-  // This is a best-effort check — if npm and dist-server are out of
+  // /latest unreachable: fall back to npm package.json version.
+  // This is a best-effort check — if npm and the release site are out of
   // sync this may trigger unnecessarily, but install.js will download
-  // the right binary from dist-server when it becomes reachable.
+  // the right binary from the release site when it becomes reachable.
   try {
     const pkgVer = 'v' + JSON.parse(
       fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8')
     ).version;
     if (versionLess(binVer, pkgVer)) {
-      console.error('[realagent-mcp] Binary %s < npm %s (dist-server unreachable), downloading...', binVer, pkgVer);
+      console.error('[realagent-mcp] Binary %s < npm %s (/latest unreachable), downloading...', binVer, pkgVer);
       return true;
     }
   } catch (_) { /* proceed */ }

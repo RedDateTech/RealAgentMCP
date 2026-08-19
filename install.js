@@ -325,28 +325,28 @@ async function main() {
     warn('Skipping binary download. Re-run: node install.js');
     return;
   }
-  // Normalize: dist-server version always has "v" prefix (e.g. "v1.2.4").
-  const distVer = (meta.version && !meta.version.startsWith('v'))
+  // Normalize: the /latest version always has "v" prefix (e.g. "v1.2.4").
+  const latestVer = (meta.version && !meta.version.startsWith('v'))
     ? 'v' + meta.version
     : meta.version;
-  if (!distVer) {
+  if (!latestVer) {
     warn('Latest release info missing version field');
     warn('Skipping binary download. Re-run: node install.js');
     return;
   }
-  ok(`latest release: ${distVer}`);
+  ok(`latest release: ${latestVer}`);
 
-  // Compare against dist-server version (source of truth), not npm version.
-  // npm and dist-server may diverge during release.
+  // Compare against the /latest version (source of truth), not npm version.
+  // npm and the release site may diverge during release.
   if (fs.existsSync(binPath) && fs.existsSync(VERSION_FILE)) {
     const installed = fs.readFileSync(VERSION_FILE, 'utf8').trim();
     // Handle legacy cache entries that lacked the "v" prefix.
     const normalized = installed.startsWith('v') ? installed : 'v' + installed;
-    if (normalized === distVer) {
-      ok(`binary ${distVer} already installed`);
+    if (normalized === latestVer) {
+      ok(`binary ${latestVer} already installed`);
       return;
     }
-    log(`version mismatch (installed=${normalized}, dist=${distVer}), re-downloading...`);
+    log(`version mismatch (installed=${normalized}, latest=${latestVer}), re-downloading...`);
   }
 
   // 2. Resolve download URL and checksum for this platform
@@ -487,9 +487,9 @@ async function main() {
   if (process.platform !== 'win32') {
     try { fs.chmodSync(binPath, 0o755); } catch (_) {}
   }
-  fs.writeFileSync(VERSION_FILE, distVer, 'utf8');
+  fs.writeFileSync(VERSION_FILE, latestVer, 'utf8');
   fs.rmSync(tmpDir, { recursive: true, force: true });
-  ok(`installed realagent-mcp ${distVer} → ${binPath}`);
+  ok(`installed realagent-mcp ${latestVer} → ${binPath}`);
 }
 
 main().catch((err) => {
