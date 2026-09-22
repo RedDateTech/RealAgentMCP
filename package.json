@@ -1,6 +1,6 @@
 {
   "name": "realagent-mcp",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "mcpName": "io.github.RedDateTech/realagent-mcp",
   "description": "RealAgent MCP Server — 国信智能体实名关联服务",
   "license": "UNLICENSED",
